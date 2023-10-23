@@ -1,20 +1,24 @@
-FROM ubuntu:latest AS build
+FROM eclipse-temurin:20-jdk-jammy as base
 
-RUN apt-get update
-RUN apt-get install openjdk-17-jdk -y
+WORKDIR /app
 
-COPY . .
+COPY .mvn/ .mvn
+COPY mvnw pom.xml ./
 
-RUN apt-get install maven -y
+RUN ./mvnw dependency:resolve
 
-RUN mvn dependency:go-offline
-RUN mvn clean install
+COPY src ./src
 
-FROM mysql
-FROM openjdk:17-jdk-slim
+FROM base as test
+CMD ["./mvnw", "test"]
 
+FROM base as development
+CMD ["./mvnw", "spring-boot:run", "-Dspring-boot.run.profiles=mysql", "-Dspring-boot.run.jvmArguments='-agentlib:jdwp=transport=dt_socket,server=y,suspend=n,address=*:8000'"]
+
+FROM base as build
+RUN ./mvnw package
+
+FROM eclipse-temurin:20-jre-jammy as production
 EXPOSE 8080
-
-COPY --from=build target/api-med-0.0.1-SNAPSHOT.jar app.jar
-
-ENTRYPOINT [ "java", "-jar", "app.jar" ]
+COPY --from=build /app/target/trading-platform-*.jar /trading-platform.jar
+CMD ["java", "-Djava.security.egd=file:/dev/./urandom", "-jar", "/trading-platform.jar"]

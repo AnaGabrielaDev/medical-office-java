@@ -1,25 +1,27 @@
-version: '3.8'
-
+version: "3"
 services:
-  app:
-    build: .
-    ports:
-      - "8080:8080"
-    depends_on:
-      - db
-  db:
-    image: mysql
-    container_name:  mysql
-    command: --default-authentication-plugin=mysql_native_password
+  mysql:
+    image: 'mysql:latest'
     environment:
-      MYSQL_ROOT_PASSWORD: password
-      MYSQL_DATABASE: api-med
-      MYSQL_USER: apimed
-      MYSQL_PASSWORD: apimed
+      - 'MYSQL_DATABASE=api-med'
+      - 'MYSQL_USER=apimed'
+      - 'MYSQL_PASSWORD=apimed'
+      - 'MYSQL_ROOT_PASSWORD=some_password'
     ports:
-      - "3306:3306"
+      - '3306:3306'
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: development
     volumes:
-      - db_data:/var/lib/mysql
-
-volumes:
-  db_data:
+      - ./:/app
+    environment:
+      - SERVER_PORT=8080
+      - MYSQL_URL=jdbc:mysql://mysql:3306/api-med
+    depends_on:
+      - mysql
+    links:
+      - mysql
+    ports:
+      - 8080:8080
